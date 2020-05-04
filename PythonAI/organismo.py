@@ -6,19 +6,23 @@ class Organismo:
     posX: int = 0
     posY: int = 0
     angulo: float = 0.0
-    genoma: [float]
+    genoma: [float] = [float] * 1000
     estado: int = 0  # 0-Alive (-1)-Dead 1-Finish
+    especie: int
+    numero_miembro: int
     color: int = 0
     coefMutacion: float
 
     # default constructor
-    def __init__(self, coefMutacion, color):
-        self.posX = 0
-        self.posY = 0
-        self.angulo = 0
-        self.genoma = [float] * 1000
-        self.estado = 0
+    def __init__(self, posX, posY, angulo,genoma,estado,especie,numero_miembro, coefMutacion, color):
+        self.posX = posX
+        self.posY = posY
+        self.angulo = angulo
+        self.genoma = genoma
+        self.estado = estado
         self.color = color
+        self.especie = especie
+        self.numero_miembro = numero_miembro
         self.coefMutacion = coefMutacion
 
     def get_posX(self):

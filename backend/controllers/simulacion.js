@@ -28,15 +28,21 @@ var controller = {
 				coeficienteEspecie4,coeficienteEspecie5,coeficienteEspecie6,coeficienteEspecie7,coeficienteEspecie8,coeficienteEspecie9]);
 			console.log("spawn process 2");
 
-	    	pythonProcess.stdout.on('data', function(data) {
-		        console.log(data.toString());
-		        //res.write(data, function(err) {
-		        //	res.end('end'); 
-		        //});
+			pythonProcess.stdout.on('data', function(data) {
+				//console.log("consola " + data.toString().replace("\n",""));
+				//console.log("consola " + 'Proceso finalizado OK');
+				if(data.toString().replace("\n","") == 'Proceso finalizado OK'){
+					console.log("consola " + data.toString().replace("\n",""));
+					res.end('end');
+				}else{
+					//console.log("Error " + data.toString());
+				}
+			});
 
-		        res.write(data);
-		        //res.end('end');
-		    });
+			pythonProcess.stderr.on('data', (data) => {
+				console.log(uint8arrayToString(data));
+			});
+
 		}
 		catch (e) {
 		  console.log("entering catch block");
