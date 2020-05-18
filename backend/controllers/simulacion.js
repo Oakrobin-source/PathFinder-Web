@@ -40,7 +40,7 @@ var controller = {
 			});
 
 			pythonProcess.stderr.on('data', (data) => {
-				console.log(uint8arrayToString(data));
+				console.log(data.toString().replace("\n",""));
 			});
 
 		}

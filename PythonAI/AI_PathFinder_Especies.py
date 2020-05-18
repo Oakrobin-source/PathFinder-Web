@@ -1,64 +1,144 @@
 import math
 import sys
-import organismo
-from pymongo import MongoClient
+import random
 
-def copiar_genoma(genoma_antiguo: float):
-    genoma_nuevo: [float] = [float] * 1000
+from organismo import Organismo
+from pymongo import MongoClient
+from PIL import Image
+
+def copiar_genoma(genoma_antiguo):
+    genoma_nuevo = [1] * 1000
 
     for i in range(1000):
+
         genoma_nuevo[i] = genoma_antiguo[i]
 
     return genoma_nuevo
+
+
+def esMeta(posX, posY):
+    global mapa
+
+    rgb_pixel_value = mapa.getpixel((posX, posY))
+
+    # Salida                 rgb(184,61,186)
+    # Rojo relleno Salida    rgb(255, 127, 39)
+    # Rojo borde Salida      rgb(236, 28, 36)
+
+    # Meta borde             rgb(14,209,69)
+    # Meta interior          rgb(196,255,14)
+    # Meta                   rgb(0,255,72)
+
+    # Terreno pisable        rgb(185, 242, 240)
+
+    # Gris fuera             rgb(195,195,195)
+    # Negro fuera            rgb(0,0,0)
+
+    if rgb_pixel_value == (0,255,72):
+        return True
+    else:
+        return False
+
+
+
+def esObstaculo(posX, posY):
+    global mapa
+
+    rgb_pixel_value = mapa.getpixel((posX, posY))
+
+    # Salida                 rgb(184,61,186)
+    # Rojo relleno Salida    rgb(255, 127, 39)
+    # Rojo borde Salida      rgb(236, 28, 36)
+
+    # Meta borde             rgb(14,209,69)
+    # Meta interior          rgb(196,255,14)
+    # Meta                   rgb(0,255,72)
+
+    # Terreno pisable        rgb(185, 242, 240)
+
+    # Gris fuera             rgb(195,195,195)
+    # Negro fuera            rgb(0,0,0)
+
+    if rgb_pixel_value == (195,195,195) or rgb_pixel_value == (0,0,0):
+        return True
+    else:
+        return False
+
 
 def move():
     global turno
     global generacion
     global muertes
+    global SalidaX
+    global SalidaY
+    global MetaX
+    global MetaY
 
-    if turno == 1:
-        print("-----Generation: " + generacion + "-----")
+    #  if turno == 1:
+    print("-----Generation: " + str(generacion) + "-----")
+    print("-----Turno: " + str(turno) + "-----")
 
-    if turno == 200:
+    # if turno == 200:
         # leaderboard.reset_new_score()
 
     # POSITION UPDATES
-    for t in range(numero_especies): # Numero de especies
-        especieResult = especieMongoDB.find_one({"numeroEspecie": t + 1})
-        for g in range(50): # Numero de organismos
-            organismoResult = organismoMongoDB.find_one({"especie": t+1,"numero_miembro": g+1})
+    for e in range(numero_especies): # Numero de especies
+        especieMongoDB = especies.find_one({"numeroEspecie": e + 1})
+        for o in range(50): # Numero de organismos
+            organismoMongoDB = organismos.find_one({"especie": e+1,"numero_miembro": o+1})
 
-            organismoAux: organismo = organismo(organismoResult["coordX"],
-                                                organismoResult["coordY"],
-                                                organismoResult["angulo"],
-                                                organismoResult["genoma"],
-                                                organismoResult["estado"],
-                                                organismoResult["especie"],
-                                                organismoResult["numero_miembro"],
-                                                especieResult["ratioMutacion"],
-                                                especieResult["color"])
+            organismoAux: Organismo = Organismo(organismoMongoDB["coordX"],
+                                                organismoMongoDB["coordY"],
+                                                organismoMongoDB["angulo"],
+                                                organismoMongoDB["genoma"],
+                                                organismoMongoDB["estado"],
+                                                organismoMongoDB["especie"],
+                                                organismoMongoDB["numero_miembro"],
+                                                especieMongoDB["ratioMutacion"],
+                                                especieMongoDB["color"])
 
             if organismoAux.estado == 0:
+                #print("Mover " + str(organismoAux.especie) + " " + str(organismoAux.numero_miembro))
+
                 organismoAux.mover(turno-1)
 
-                posXMeta: int = 0
-                posYMeta: int = 0
-
                 distancia:float = 0
-                distancia = math.hypot(posXMeta - organismoAux.posX, posYMeta - organismoAux.posY)
-                if distancia < resultado_cercano[g][t]:
-                    resultado_cercano[g][t]=distancia
+                distancia = math.hypot(MetaX - organismoAux.posX, MetaY - organismoAux.posY)
+                if distancia < resultado_cercano[e][o]:
+                    resultado_cercano[e][o] = distancia
 
-                if organismoAux.posX > 800 or organismoAux.posY < 3 or organismoAux.posY > 494 or organismoAux.posY < 3 or esObstaculo(organismoAux.posX, organismoAux.posY):
-                    organismoAux.set_state(-1)
+                # print("Organismo " + str(o) + " de la especie " + str(e) + "-- POS -- (" + str(organismoAux.posX) + "," + str(organismoAux.posY) + ") " + str(organismoAux.angulo))
+
+                if organismoAux.posX > mapa.size[0] or organismoAux.posY > mapa.size[1] or organismoAux.posY < 3 or esObstaculo(organismoAux.posX, organismoAux.posY):
+                    organismoAux.estado = -1
                     muertes = muertes + 1
-                    resultado_turno[g][t] = turno
+                    resultado_turno[e][o] = turno
                 else:
                     if esMeta(organismoAux.posX, organismoAux.posY):
                         organismoAux.set_state(1)
-                        resultado_turno[g][t] = turno
+                        resultado_turno[e][o] = turno
                         muertes = muertes + 1
                         print("goal in turn: " + turno)
+
+            # Guardar todos los hijos modificados
+            organismos.update_one(
+                {"especie": organismoAux.especie, "numero_miembro": organismoAux.numero_miembro},
+                {"$set":
+                     {"coordX": organismoAux.posX,
+                      "coordY": organismoAux.posY,
+                      "angulo": organismoAux.angulo,
+                      "genoma": organismoAux.genoma,
+                      "estado": organismoAux.estado,
+                      "especie": organismoAux.especie,
+                      "numero_miembro": organismoAux.numero_miembro}
+                 })
+
+        # print("Organismos muertos: " + str(muertes) + " de " + str(50 * numero_especies))
+        #
+        # print("resultado especie: " + str(e+1))
+        # print("--- " + str(resultado_turno[e]))
+        # print("resultado cercano: " + str(e+1))
+        # print("--- " + str(resultado_cercano[e]))
 
     # DRAW ORGANISMS - SE HACE EN ANGULAR
 
@@ -124,43 +204,44 @@ def move():
     # }
     #
     # stroke(0);
-
+    print("Organismos muertos: " + str(muertes) + " de " + str(50 * numero_especies))
     # check if last turn
-    if turno == 999 or muertes == 300:
-        for t in range(numero_especies):  # Numero de especies
-            for j in range(50):  # Numero de organismos
+    if turno == 999 or muertes == (50 * numero_especies):
+        for e in range(numero_especies):  # Numero de especies
+            especieMongoDB = especies.find_one({"numeroEspecie": e + 1})
+            for o in range(50):  # Numero de organismos
 
-                organismoResult = organismoMongoDB.find_one({"especie": t + 1, "numero_miembro": j + 1})
+                organismoMongoDB = organismos.find_one({"especie": e + 1, "numero_miembro": o + 1})
 
-                organismoAux: organismo = organismo(organismoResult["coordX"],
-                                                    organismoResult["coordY"],
-                                                    organismoResult["angulo"],
-                                                    organismoResult["genoma"],
-                                                    organismoResult["estado"],
-                                                    organismoResult["especie"],
-                                                    organismoResult["numero_miembro"],
-                                                    especieResult["ratioMutacion"],
-                                                    especieResult["color"])
+                organismoAux: Organismo = Organismo(organismoMongoDB["coordX"],
+                                                    organismoMongoDB["coordY"],
+                                                    organismoMongoDB["angulo"],
+                                                    organismoMongoDB["genoma"],
+                                                    organismoMongoDB["estado"],
+                                                    organismoMongoDB["especie"],
+                                                    organismoMongoDB["numero_miembro"],
+                                                    especieMongoDB["ratioMutacion"],
+                                                    especieMongoDB["color"])
 
                 resultado: float
-                distancia_final = math.hypot(posXMeta - organismoAux.posX, posYMeta - organismoAux.posY)
+                distancia_final = math.hypot(SalidaX - organismoAux.posX, SalidaY - organismoAux.posY)
                 if organismoAux.estado == 1:
-                    resultado = 1 * (1500-distancia_final)+0.5 * (1500-distancia_final)+1 * (1000-resultado_turno[j][t])+0.3 * (1000-resultado_turno[j][t])
+                    resultado = 1 * (1500-distancia_final)+0.5 * (1500-distancia_final)+1 * (1000-resultado_turno[e][o]) + 0.3 * (1000-resultado_turno[e][o])
                 else:
-                    resultado = 1 * (1500-distancia_final)+0.5 * (1500-resultado_cercano[j][t])+1 * (1000-1000)+0.3 * (1000-resultado_turno[j][t])
+                    resultado = 1 * (1500-distancia_final)+0.5 * (1500-resultado_cercano[e][o])+1 * (1000-1000)+0.3 * (1000 - resultado_turno[e][o])
 
-                print(j + "-" + resultado + " (best:" + resultado_turno2[0][t])
+                #  print("Especie " + str(e+1) + " Organismo " + str(o+1) + " - Distancia - " + str(resultado) + " mejor resultado: " + str(resultado_turno2[0][o]))
 
-                if resultado > resultado_turno2[0][t]: # 1st
-                    resultado_turno2[1][t]=resultado_turno2[0][t];
-                    top2[t]=copiar_genoma(top1[t])
-                    resultado_turno2[0][t]=resultado
-                    top1[t]=copiar_genoma(organismoAux.genoma)
+                if resultado > resultado_turno2[0][e]:  # 1st
+                    resultado_turno2[1][o] = resultado_turno2[0][o]
+                    top2[o] = copiar_genoma(top1[o])
+                    resultado_turno2[0][e] = resultado
+                    top1[o] = copiar_genoma(organismoAux.genoma)
                     # leaderboard.set_new_true(t);
                 else:
-                    if resultado > resultado_turno2[1][t] and j != 0: # 2nd
-                        resultado_turno2[1][t]=resultado
-                        top2[t]=copiar_genoma(organismoAux.genoma)
+                    if resultado > resultado_turno2[1][o] and e != 0:  # 2nd
+                        resultado_turno2[1][o] = resultado
+                        top2[e] = copiar_genoma(organismoAux.genoma)
 
             # update graph
             # line.get(t).append((int(top2_score[0][t])));
@@ -171,42 +252,58 @@ def move():
             # leaderboard.update(top2_score[0][x], x);
 
             # nuevo genoma
-            for j in range(50):
+            for o in range(50):
 
-                organismoResult = organismoMongoDB.find_one({"especie": t + 1, "numero_miembro": j + 1})
+                organismoMongoDB = organismos.find_one({"especie": e + 1, "numero_miembro": o + 1})
 
-                organismoAux: organismo = organismo(organismoResult["coordX"],
-                                                    organismoResult["coordY"],
-                                                    organismoResult["angulo"],
-                                                    organismoResult["genoma"],
-                                                    organismoResult["estado"],
-                                                    organismoResult["especie"],
-                                                    organismoResult["numero_miembro"],
-                                                    especieResult["ratioMutacion"],
-                                                    especieResult["color"])
+                organismoAux: Organismo = Organismo(organismoMongoDB["coordX"],
+                                                    organismoMongoDB["coordY"],
+                                                    organismoMongoDB["angulo"],
+                                                    organismoMongoDB["genoma"],
+                                                    organismoMongoDB["estado"],
+                                                    organismoMongoDB["especie"],
+                                                    organismoMongoDB["numero_miembro"],
+                                                    especieMongoDB["ratioMutacion"],
+                                                    especieMongoDB["color"])
 
-                organismoAux.hijo(top1[t], top2[t])
+                organismoAux.hijo(top1[e], top2[e], especieMongoDB["ratioMutacion"])
 
-                #Guardar todos los hijos modificados
+                # Guardar todos los hijos modificados
+                organismos.update_one({"especie": organismoAux.especie, "numero_miembro": organismoAux.numero_miembro},
+                                      {"$set":
+                                           {"coordX": organismoAux.posX,
+                                            "coordY": organismoAux.posY,
+                                            "angulo": organismoAux.angulo,
+                                            "genoma": organismoAux.genoma,
+                                            "estado": organismoAux.estado,
+                                            "especie": organismoAux.especie,
+                                            "numero_miembro": organismoAux.numero_miembro}
+                                       })
+
+                #print("Acuralizo " + str(organismoAux.especie) + " " + str(organismoAux.numero_miembro))
 
                 # top2_score[0]=0;
                 # top2_score[1]=0;
-                organismoAux.reset();
-                resultado_turno[j][t]=1000;
-                resultado_cercano[j][t]=1500;
+                organismoAux.reset()
+                resultado_turno[e][o] = 1000
+                resultado_cercano[e][o] = 1500
 
         # reset things
-        turno=0
+        turno = 0
         muertes = 0
         generacion = generacion + 1
 
+        # Evento de refresco para Angular
 
-        #Evennto de refresco para Angular
+    #print("top1 score: " + str(resultado_turno2[0]))
+    #print("top2 score: " + str(resultado_turno2[1]))
 
-    print("top1 score: " + resultado_turno2[0])
-    print("top2 score: " + resultado_turno2[1])
 
     turno = turno + 1
+
+    if turno != 999:
+        move()
+
 
 
 
@@ -214,10 +311,48 @@ colores = ["Rojo", "Naranja", "Verde_Oscuro", "Verde_Claro", "Amarillo",
           "Azul_Marino", "Cian", "Violeta", "Marron"]
 numero_especies: int = 0
 
+global mapa
+mapa = Image.open("/home/roberto/Escritorio/Web/PythonAI/mapa2.png")
+mapa = mapa.convert("RGB")
+
+# Salida                 rgb(184,61,186)
+# Rojo relleno Salida    rgb(255, 127, 39)
+# Rojo borde Salida      rgb(236, 28, 36)
+
+# Meta borde             rgb(14,209,69)
+# Meta interior          rgb(196,255,14)
+# Meta                   rgb(0,255,72)
+
+# Terreno pisable        rgb(185, 242, 240)
+
+# Gris fuera             rgb(195,195,195)
+# Negro fuera            rgb(0,0,0)
+
+global SalidaX
+global SalidaY
+global MetaX
+global MetaY
+
+colorSalida = (184,61,186)
+colorMeta = (0,255,72)
+for x in range(mapa.size[0]):
+    for y in range(mapa.size[1]):
+        if colorSalida == mapa.getpixel((x, y)):
+            SalidaX = x
+            SalidaY = y
+        if colorMeta == mapa.getpixel((x, y)):
+            MetaX = x
+            MetaY = y
+
 # Step 1: Connect to MongoDB - Note: Change connection string as needed
 client = MongoClient('localhost', 27017)
 db = client.PathFinder
 
+especies = db.especies
+especies.drop()
+
+organismos = db.organismos
+organismos.drop()
 for x in range(sys.argv.__len__()-1):
     numero_especies = x + 1
 
@@ -228,6 +363,7 @@ for x in range(sys.argv.__len__()-1):
         'color': colores[x]
     }
     # Step 3: Insert business object directly into MongoDB via isnert_one
+
     result = db.especies.insert_one(especieMongoDB)
 
     # Step 4: Print to the console the ObjectID of the new document
@@ -235,13 +371,18 @@ for x in range(sys.argv.__len__()-1):
 
     for i in range(50):
         # Step 2: Create sample data
+        genoma = [0] * 1000
+        for n in range(1000):
+            genoma[n] = random.uniform(-0.2, 0.2)
+
         organismoMongoDB = {
-            'coordX': 0,
-            'coordY': 0,
+            'coordX': SalidaX,
+            'coordY': SalidaY,
             'angulo': 0,
             'especie': x+1,
             'numero_miembro': i+1,
-            'estado': 0
+            'estado': 0,
+            'genoma': genoma
         }
         # Step 3: Insert business object directly into MongoDB via isnert_one
         result = db.organismos.insert_one(organismoMongoDB)
@@ -251,32 +392,34 @@ for x in range(sys.argv.__len__()-1):
 
 # Proceso finalizado OK
 print('Proceso finalizado OK')
-
-resultado_turno: [int][int] = [range(50) for i in range(numero_especies)]
-resultado_cercano: [float][float] = [range(50) for i in range(numero_especies)]
-resultado_turno2: [float][float] = [range(50) for i in range(numero_especies)]
-top1: [float][float] = [range(numero_especies) for i in range(1000)]
-top2: [float][float] = [range(numero_especies) for i in range(1000)]
+resultado_turno = [[4000] * 50 for i in range(numero_especies)]
+resultado_cercano = [[4000] * 50 for i in range(numero_especies)]
+resultado_turno2 = [[0] * 2 for i in range(numero_especies)]
+top1 = [[0] * 1000 for i in range(numero_especies)]
+top2 = [[0] * 1000 for i in range(numero_especies)]
 
 # ArrayList<IntList> line = new ArrayList<IntList>();
 # team leaderboard = new team();
 # float top_fitness[] = {0, 0, 0, 0, 0, 0};
-turno:int = 1
-generacion: int = 1
-muertes: int = 0
+global turno
+turno = 1
+global generacion
+generacion = 1
+global muertes
+muertes = 0
 # int div = 0;
 
 #setup
 # size(1000, 650);
-for t in range(numero_especies): # Numero Especies
-    # line.add(new IntList());
-    resultado_turno2[0][t] = 0
-    resultado_turno2[1][t] = 0
-    for i in range(50):  # Numero organismos
-      # generation[i][t]= new organism();
-      # generation[i][t].random_genome();
-      resultado_turno[i][t] = 1000
-      resultado_cercano[i][t] = 1500
+# for t in range(numero_especies): # Numero Especies
+#     # line.add(new IntList());
+#     resultado_turno2[0][t] = 0
+#     resultado_turno2[1][t] = 0
+#     for i in range(50):  # Numero organismos
+#       # generation[i][t]= new organism();
+#       # generation[i][t].random_genome();
+#       resultado_turno[i][t] = 1000
+#       resultado_cercano[i][t] = 1500
 
 
 # Cargar Mapa

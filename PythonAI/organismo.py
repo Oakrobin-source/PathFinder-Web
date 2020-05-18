@@ -1,20 +1,19 @@
 import math
 import random
 
-
 class Organismo:
     posX: int = 0
     posY: int = 0
     angulo: float = 0.0
-    genoma: [float] = [float] * 1000
+    genoma = []
     estado: int = 0  # 0-Alive (-1)-Dead 1-Finish
     especie: int
     numero_miembro: int
-    color: int = 0
+    color: str = ""
     coefMutacion: float
 
     # default constructor
-    def __init__(self, posX, posY, angulo,genoma,estado,especie,numero_miembro, coefMutacion, color):
+    def __init__(self, posX, posY, angulo, genoma, estado, especie, numero_miembro, coefMutacion, color):
         self.posX = posX
         self.posY = posY
         self.angulo = angulo
@@ -24,30 +23,6 @@ class Organismo:
         self.especie = especie
         self.numero_miembro = numero_miembro
         self.coefMutacion = coefMutacion
-
-    def get_posX(self):
-        return self.posX
-
-    def set_posX(self, x):
-        self.posX = x
-
-    def get_posY(self):
-        return self.posY
-
-    def set_posY(self, y):
-        self.posY = y
-
-    def get_angulo(self):
-        return self.angulo
-
-    def set_angulo(self, angulo):
-        self.angulo = angulo
-
-    def get_estado(self):
-        return self.posY
-
-    def set_estado(self, estado):
-        self.estado = estado
 
     def reset(self):
         self.posX = 0
@@ -60,10 +35,6 @@ class Organismo:
         self.posX = self.posX + int(2 * math.cos(self.angulo))
         self.posY = self.posY + int(2 * math.sin(self.angulo))
 
-    def random_genoma(self):
-        for x in range(self.genoma.__len__()):
-            self.genoma[x] = random.uniform(-0.2, 0.2)
-
     def get_genoma_value(self, index):
         return self.genoma[index]
 
@@ -74,20 +45,25 @@ class Organismo:
         for x in range(0, genomaAux.__len__()):
             self.genoma[x] = genomaAux[x]
 
-    def hijo(self, madre, padre):
+    def hijo(self, madre, padre, coefMutacion):
         random1: float = 0.0
         random2: float = 0.0
-
-        for x in range(0, self.genoma.__len__()):
+        len_genoma = self.genoma.__len__()
+        self.genoma.clear()
+        for x in range(len_genoma):
             random1 = random.uniform(0, 1)
             if random1 < 0.5:
-                self.genoma[x] = madre.get_genoma_value(x)
+                #self.genoma.remove(x)
+                #self.genoma.insert(x, float(madre[x]))
+                self.genoma.append(float(madre[x]))
             else:
-                self.genoma[x] = padre.get_genoma_value(x)
+                #self.genoma.remove(x)
+                #self.genoma.insert(x, float(padre[x]))
+                self.genoma.append(float(padre[x]))
 
             random2 = random.uniform(0, 1)
 
-            if random2 < madre.coefMutacion:
+            if random2 < coefMutacion:
                 self.genoma[x] = random.uniform(-0.2, 0.2)
 
     def compareTo(self, o):

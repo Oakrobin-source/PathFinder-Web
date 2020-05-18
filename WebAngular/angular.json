@@ -119,6 +119,15 @@
           }
         }
       }
-    }},
-  "defaultProject": "WebAngular"
+    }
+  },
+  "defaultProject": "WebAngular",
+  "schematics": {
+    "@ngrx/schematics:component": {
+      "styleext": "scss"
+    }
+  },
+  "cli": {
+    "defaultCollection": "@ngrx/schematics"
+  }
 }
